@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lives da Rainha 👑 | A Rainha das Promoções</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<style>
+  :root{
+    --azul:#3A4BD8;
+    --tinta:#15151F;
+    --papel:#F2F1EA;
+    --amarelo:#F5C518;
+    --lilas:#A99DF5;
+    --verde:#5FD68F;
+    --rosa:#F2557C;
+    --rosa-claro:#FFD3DE;
+    --teal:#0F9D8F;
+    --borda:2.4px solid var(--tinta);
+    --sombra-g:6px 6px 0 0 var(--tinta);
+    --sombra-m:4px 4px 0 0 var(--tinta);
+    --sombra-p:2px 2px 0 0 var(--tinta);
+    --raio:12px;
+    --raio-btn:10px;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{
+    font-family:"Space Grotesk",-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+    background-color:var(--azul);
+    background-image:
+      linear-gradient(rgba(255,255,255,.09) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,.09) 1px, transparent 1px);
+    background-size:30px 30px;
+    color:var(--tinta);
+    min-height:100vh;
+  }
+  a{text-decoration:none;color:inherit}
+  button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+  input,select{font-family:inherit}
+
+  /* estrelinhas decorativas */
+  .estrela{position:fixed;font-size:26px;z-index:0;pointer-events:none;opacity:.95;text-shadow:2px 2px 0 rgba(0,0,0,.25)}
+  .e1{top:9%;left:5%}.e2{top:22%;right:6%;font-size:32px}.e3{bottom:18%;left:7%}.e4{bottom:30%;right:5%;font-size:20px}
+
+  .container{max-width:560px;margin:0 auto;padding:22px 16px 40px;position:relative;z-index:1}
+
+  /* ===== Janela (card base) ===== */
+  .janela{
+    background:var(--papel);
+    border:var(--borda);
+    border-radius:var(--raio);
+    box-shadow:var(--sombra-g);
+    overflow:hidden;
+    margin-bottom:20px;
+  }
+  .barra{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:8px 12px;
+    border-bottom:var(--borda);
+    font-size:13px;font-weight:700;letter-spacing:.3px;text-transform:uppercase;
+  }
+  .barra-lilas{background:var(--lilas)}
+  .barra-verde{background:var(--verde)}
+  .barra-amarela{background:var(--amarelo)}
+  .barra-rosa{background:var(--rosa-claro)}
+  .barra .controles{display:flex;gap:8px;align-items:center;font-weight:700;font-size:13px;opacity:.85}
+  .janela .corpo{padding:16px}
+
+  /* ===== Título grande estilo hero ===== */
+  .hero-titulo{
+    text-align:center;font-weight:700;color:var(--azul);
+    font-size:30px;line-height:1.25;letter-spacing:.5px;
+  }
+  .marca-texto{
+    display:inline-block;background:var(--amarelo);color:var(--azul);
+    padding:2px 12px;border-radius:10px;box-shadow:3px 3px 0 0 var(--tinta);
+  }
+  .hero-sub{
+    text-align:center;font-size:14.5px;margin-top:12px;line-height:1.5;
+  }
+  .hero-chips{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-top:16px}
+  .chip{
+    display:inline-flex;align-items:center;gap:6px;
+    background:var(--papel);border:var(--borda);border-radius:var(--raio-btn);
+    box-shadow:var(--sombra-m);
+    font-size:12.5px;font-weight:700;padding:8px 12px;
+    transition:transform .1s, box-shadow .1s;
+  }
+  .chip-amarelo{background:var(--amarelo)}
+  .chip-lilas{background:var(--lilas)}
+  .hero-aviso{text-align:center;font-weight:700;font-size:13.5px;margin-top:16px}
+
+  /* ===== Botões ===== */
+  .btn{
+    display:inline-flex;align-items:center;justify-content:center;gap:6px;
+    border:var(--borda);border-radius:var(--raio-btn);
+    box-shadow:var(--sombra-m);
+    font-size:14px;font-weight:700;
+    padding:11px 16px;
+    transition:transform .1s, box-shadow .1s;
+    background:var(--papel);
+  }
+  .btn:active{transform:translate(3px,3px);box-shadow:var(--sombra-p)}
+  .btn-amarelo{background:var(--amarelo)}
+  .btn-lilas{background:var(--lilas)}
+  .btn-verde{background:var(--verde)}
+  .btn-rosa{background:var(--rosa-claro);color:#B4133F}
+  .btn-bloco{width:100%}
+  .btn-mini{padding:7px 11px;font-size:12.5px;box-shadow:var(--sombra-p)}
+  .btn-mini:active{transform:translate(2px,2px);box-shadow:none}
+
+  /* ===== Home: lista de lives ===== */
+  .titulo-secao{
+    color:#fff;font-size:19px;font-weight:700;margin:6px 0 14px;
+    text-shadow:2px 2px 0 rgba(0,0,0,.3);
+  }
+  .card-live{display:block;transition:transform .1s}
+  .card-live:active{transform:translate(2px,2px)}
+  .card-live .corpo{display:flex;align-items:center;gap:14px;padding:14px 16px}
+  .card-live .icone{
+    width:48px;height:48px;border:var(--borda);border-radius:10px;
+    background:#fff;display:flex;align-items:center;justify-content:center;
+    font-size:24px;flex-shrink:0;box-shadow:var(--sombra-p);
+  }
+  .card-live .info{flex:1;min-width:0}
+  .card-live .titulo{font-size:16px;font-weight:700;line-height:1.3}
+  .card-live .meta{font-size:13px;margin-top:3px;opacity:.75;font-weight:500}
+  .card-live .seta{font-size:22px;font-weight:700;flex-shrink:0}
+
+  .vazio{
+    text-align:center;padding:36px 20px;font-size:14.5px;font-weight:500;
+  }
+  .vazio .emoji{font-size:44px;margin-bottom:12px}
+
+  /* ===== Página da live ===== */
+  .faixa-live{text-align:center}
+  .faixa-live .corpo{padding:18px 16px}
+  .faixa-live .tag{
+    display:inline-block;background:var(--rosa);color:#fff;
+    border:var(--borda);border-radius:100px;box-shadow:var(--sombra-p);
+    font-size:11.5px;font-weight:700;letter-spacing:.8px;
+    padding:4px 12px;text-transform:uppercase;
+  }
+  .faixa-live h2{font-size:21px;font-weight:700;margin-top:10px;line-height:1.3}
+  .faixa-live .data{font-size:13.5px;margin-top:5px;opacity:.7;font-weight:500}
+
+  .grade{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .card-produto{
+    background:var(--papel);border:var(--borda);border-radius:var(--raio);
+    box-shadow:var(--sombra-m);overflow:hidden;
+    display:flex;flex-direction:column;margin-bottom:0;
+  }
+  .card-produto .barra{font-size:10.5px;padding:5px 9px}
+  .card-produto .barra .controles{font-size:10.5px;gap:5px}
+  .card-produto .foto{
+    width:100%;aspect-ratio:1/1;background:#fff;
+    display:flex;align-items:center;justify-content:center;
+    border-bottom:var(--borda);overflow:hidden;
+  }
+  .card-produto .foto img{width:100%;height:100%;object-fit:contain}
+  .card-produto .corpo{padding:10px 11px 12px;display:flex;flex-direction:column;flex:1;gap:9px}
+  .card-produto .nome{
+    font-size:13px;line-height:1.35;font-weight:500;flex:1;
+    display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;
+  }
+  .btn-comprar{
+    display:block;text-align:center;
+    background:var(--lilas);
+    border:var(--borda);border-radius:var(--raio-btn);
+    box-shadow:var(--sombra-p);
+    font-size:13.5px;font-weight:700;
+    padding:10px 0;
+    transition:transform .1s, box-shadow .1s;
+  }
+  .btn-comprar:active{transform:translate(2px,2px);box-shadow:none}
+
+  .rodape{
+    text-align:center;padding:10px 16px 30px;font-size:13px;color:#fff;font-weight:600;
+    text-shadow:1px 1px 0 rgba(0,0,0,.3);position:relative;z-index:1;
+  }
+  .rodape a{text-decoration:underline;text-underline-offset:3px}
+
+  /* ===== Admin ===== */
+  .painel-secao{
+    background:var(--papel);border:var(--borda);border-radius:var(--raio);
+    box-shadow:var(--sombra-g);margin-bottom:20px;overflow:hidden;
+  }
+  .painel-secao .conteudo{padding:16px}
+  .painel-secao h3{font-size:15px;font-weight:700;margin-bottom:12px}
+  .campo{margin-bottom:12px}
+  .campo label{display:block;font-size:12px;margin-bottom:5px;font-weight:700;text-transform:uppercase;letter-spacing:.4px}
+  .campo input{
+    width:100%;padding:11px 12px;font-size:14px;font-weight:500;
+    border:var(--borda);border-radius:var(--raio-btn);
+    outline:none;background:#fff;color:var(--tinta);
+    transition:box-shadow .1s;
+  }
+  .campo input:focus{box-shadow:var(--sombra-p)}
+  .campo input::placeholder{color:#999;font-weight:400}
+
+  .linha-live-admin{
+    display:flex;align-items:center;gap:10px;
+    padding:12px 0;border-bottom:2px dashed #d8d6c9;
+  }
+  .linha-live-admin:last-child{border-bottom:none;padding-bottom:2px}
+  .linha-live-admin .info{flex:1;min-width:0}
+  .linha-live-admin .titulo{font-size:14px;font-weight:700}
+  .linha-live-admin .meta{font-size:12px;opacity:.7;margin-top:2px;font-weight:500}
+  .badge{
+    display:inline-block;font-size:10px;font-weight:700;
+    border:2px solid var(--tinta);
+    padding:1px 8px;border-radius:100px;text-transform:uppercase;letter-spacing:.4px;
+  }
+  .badge-on{background:var(--verde)}
+  .badge-off{background:#ddd;opacity:.7}
+
+  .linha-produto-admin{
+    display:flex;align-items:center;gap:10px;
+    padding:10px 0;border-bottom:2px dashed #d8d6c9;
+  }
+  .linha-produto-admin:last-child{border-bottom:none}
+  .linha-produto-admin .mini-foto{
+    width:46px;height:46px;border:2px solid var(--tinta);border-radius:8px;
+    background:#fff;object-fit:contain;flex-shrink:0;
+  }
+  .linha-produto-admin .nome{flex:1;font-size:13px;line-height:1.3;min-width:0;font-weight:500;
+    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .acoes{display:flex;gap:6px;flex-shrink:0}
+  .btn-icone{
+    width:32px;height:32px;border:2px solid var(--tinta);border-radius:8px;
+    display:flex;align-items:center;justify-content:center;
+    font-size:14px;font-weight:700;background:#fff;
+    box-shadow:var(--sombra-p);
+    transition:transform .1s, box-shadow .1s;
+  }
+  .btn-icone:active{transform:translate(2px,2px);box-shadow:none}
+  .btn-icone.perigo{background:var(--rosa-claro);color:#B4133F}
+
+  .preview-img{
+    margin-top:8px;width:72px;height:72px;object-fit:contain;
+    border:2px solid var(--tinta);border-radius:8px;background:#fff;display:none;
+  }
+
+  .aviso-demo{
+    background:var(--amarelo);border:var(--borda);border-radius:var(--raio-btn);
+    box-shadow:var(--sombra-m);
+    padding:10px 14px;font-size:12.5px;font-weight:500;
+    margin-bottom:20px;line-height:1.5;
+  }
+
+  .caixa-add-produto{
+    background:#fff;border:2px dashed var(--tinta);border-radius:var(--raio-btn);
+    padding:12px;margin-top:12px;
+  }
+
+  hr.divisor{border:none;border-top:2px dashed #d8d6c9;margin:16px 0}
+
+  /* Toast */
+  .toast{
+    position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(90px);
+    background:var(--tinta);color:#fff;font-size:13.5px;font-weight:700;
+    padding:11px 20px;border-radius:100px;
+    border:2px solid #fff;box-shadow:var(--sombra-m);
+    opacity:0;transition:all .3s;z-index:200;white-space:nowrap;
+  }
+  .toast.mostrar{opacity:1;transform:translateX(-50%) translateY(0)}
+
+  .senha-box{max-width:360px;margin:60px auto 0;padding:0 16px;position:relative;z-index:1}
+  .senha-box .corpo{text-align:center;padding:22px 18px}
+  .senha-box .cadeado{font-size:40px;margin-bottom:10px}
+  .senha-box h2{font-size:18px;font-weight:700;margin-bottom:16px}
+
+  .link-copiavel{display:flex;gap:8px;margin-top:8px}
+  .link-copiavel input{
+    flex:1;padding:9px 10px;font-size:12px;font-weight:500;color:#555;
+    border:2px dashed var(--tinta);border-radius:8px;background:#fff;outline:none;min-width:0;
+  }
+
+  @media(max-width:380px){
+    .hero-titulo{font-size:25px}
+    .grade{gap:12px}
+  }
+</style>
+</head>
+<body>
+<span class="estrela e1">✨</span>
+<span class="estrela e2">⭐</span>
+<span class="estrela e3">💫</span>
+<span class="estrela e4">⭐</span>
+<div id="app"></div>
+<div id="toast" class="toast"></div>
+
+<script>
+/* ================================================================
+   LIVES DA RAINHA — minisite estilo arainhadaspromocoes.github.io
+   - Home:            #/
+   - Página da live:  #/l/nome-da-live
+   - Painel:          #/admin
+   ================================================================ */
+
+/* ---------- CONFIGURAÇÃO ---------- */
+const PERFIL = {
+  nome: "A Rainha das Promoções",
+  instagram: "@arainhadaspromocoes",
+  emoji: "👑"
+};
+const ADMIN_EMAIL = "vpthais@gmail.com"; // só esta conta Google edita
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyA6qO04sAW0nPFKg_z40CRXGAC0x4E70dE",
+  authDomain: "lives-da-rainha.firebaseapp.com",
+  projectId: "lives-da-rainha",
+  storageBucket: "lives-da-rainha.firebasestorage.app",
+  messagingSenderId: "85874306516",
+  appId: "1:85874306516:web:91c45fcfcb65ed602cba41"
+};
+firebase.initializeApp(FIREBASE_CONFIG);
+const db = firebase.firestore();
+const auth = firebase.auth();
+
+const CORES_BARRA = ["barra-amarela","barra-verde","barra-lilas"];
+
+/* ---------- IMAGEM RESERVA ---------- */
+function fotoDemo(cor, emoji){
+  const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='300' height='300'><rect width='300' height='300' fill='${cor}'/><text x='150' y='170' font-size='90' text-anchor='middle'>${emoji}</text></svg>`;
+  return "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
+}
+
+/* ---------- ARMAZENAMENTO (Firestore em tempo real) ---------- */
+let memoria = null; // null = ainda carregando
+db.collection("lives").onSnapshot(function(snap){
+  memoria = snap.docs.map(d => Object.assign({ id: d.id }, d.data()));
+  memoria.sort((a,b) => String(b.data||"").localeCompare(String(a.data||"")) || (b.criadaEm||0)-(a.criadaEm||0));
+  rota();
+}, function(err){
+  console.error(err);
+  if (memoria === null) memoria = [];
+  toast("Erro ao carregar os dados 😕");
+  rota();
+});
+function carregarLives(){ return memoria || []; }
+function erroEscrita(err){
+  console.error(err);
+  toast(err && err.code === "permission-denied" ? "Sem permissão — entre com a conta da Thais 🔒" : "Erro ao salvar 😕");
+}
+
+/* ---------- UTILITÁRIOS ---------- */
+function esc(t){
+  return String(t == null ? "" : t)
+    .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;").replace(/'/g,"&#39;");
+}
+function gerarSlug(titulo, lives, ignorarId){
+  let base = titulo.toLowerCase()
+    .normalize("NFD").replace(/[̀-ͯ]/g,"")
+    .replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"") || "live";
+  let slug = base, n = 2;
+  while (lives.some(l => l.slug === slug && l.id !== ignorarId)) slug = base + "-" + (n++);
+  return slug;
+}
+function formatarData(iso){
+  if(!iso) return "";
+  const [a,m,d] = iso.split("-");
+  return d + "/" + m + "/" + a;
+}
+function linkDaLive(slug){
+  return location.origin + location.pathname + "#/l/" + slug;
+}
+function copiar(texto){
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(texto).then(()=>toast("Link copiado! 🎉"), ()=>copiarFallback(texto));
+  } else copiarFallback(texto);
+}
+function copiarFallback(texto){
+  const ta = document.createElement("textarea");
+  ta.value = texto; document.body.appendChild(ta);
+  ta.select(); try{ document.execCommand("copy"); toast("Link copiado! 🎉"); }catch(e){ toast("Não consegui copiar 😕"); }
+  document.body.removeChild(ta);
+}
+let toastTimer = null;
+function toast(msg){
+  const el = document.getElementById("toast");
+  el.textContent = msg;
+  el.classList.add("mostrar");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>el.classList.remove("mostrar"), 2200);
+}
+const FOTO_PADRAO = fotoDemo("#F2F1EA","🛒");
+function controles(){ return `<span class="controles"><span>○</span><span>─</span><span>✕</span></span>`; }
+
+/* ---------- SESSÃO ADMIN (login Google) ---------- */
+let usuario = null;
+let authPronto = false;
+auth.onAuthStateChanged(function(u){
+  usuario = u;
+  authPronto = true;
+  if ((location.hash||"").startsWith("#/admin")) rota();
+});
+function entrarComGoogle(){
+  const provider = new firebase.auth.GoogleAuthProvider();
+  auth.signInWithPopup(provider).catch(function(err){
+    if (err && (err.code === "auth/popup-blocked" || err.code === "auth/operation-not-supported-in-this-environment")) {
+      auth.signInWithRedirect(provider);
+    } else if (err && err.code !== "auth/popup-closed-by-user") {
+      console.error(err);
+      toast("Não consegui entrar 😕");
+    }
+  });
+}
+function sair(){ auth.signOut().then(()=>rota()); }
+
+/* ---------- ROTEADOR ---------- */
+function rota(){
+  const hash = location.hash || "#/";
+  const app = document.getElementById("app");
+  window.scrollTo(0,0);
+  if (hash.startsWith("#/l/")) {
+    telaLive(app, decodeURIComponent(hash.slice(4)));
+  } else if (hash.startsWith("#/admin")) {
+    telaAdmin(app);
+  } else {
+    telaHome(app);
+  }
+}
+window.addEventListener("hashchange", rota);
+
+/* Navegação interna sem depender do clique padrão em link
+   (visualizadores de prévia às vezes interceptam links) */
+document.addEventListener("click", function(e){
+  const a = e.target.closest ? e.target.closest('a[href^="#"]') : null;
+  if (!a) return;
+  e.preventDefault();
+  const destino = a.getAttribute("href");
+  if (location.hash === destino) rota();
+  else location.hash = destino;
+});
+
+/* ================= TELA: CARREGANDO ================= */
+function telaCarregando(app){
+  app.innerHTML = `
+    <div class="container">
+      <div class="janela"><div class="barra barra-amarela"><span>👑 ${esc(PERFIL.nome)}</span>${controles()}</div>
+      <div class="vazio"><div class="emoji">⏳</div>Carregando os achadinhos...</div></div>
+    </div>`;
+}
+
+/* ================= TELA: HOME ================= */
+function telaHome(app){
+  if (memoria === null) { telaCarregando(app); return; }
+  const lives = carregarLives().filter(l => l.ativa);
+  let cards = "";
+  if (!lives.length) {
+    cards = `<div class="janela"><div class="barra barra-verde"><span>📺 Aguarde</span>${controles()}</div>
+      <div class="vazio"><div class="emoji">📺</div>Nenhuma live no ar agora.<br><b>Volte em breve — tem live nova toda semana!</b></div></div>`;
+  } else {
+    cards = lives.map((l,i) => `
+      <a class="card-live janela" href="#/l/${esc(l.slug)}">
+        <div class="barra ${CORES_BARRA[i % CORES_BARRA.length]}">
+          <span>🔴 Live · ${esc(formatarData(l.data))}</span>${controles()}
+        </div>
+        <div class="corpo">
+          <div class="icone">🛍️</div>
+          <div class="info">
+            <div class="titulo">${esc(l.titulo)}</div>
+            <div class="meta">${l.produtos.length} produto${l.produtos.length===1?"":"s"} · toque para ver</div>
+          </div>
+          <div class="seta">▶</div>
+        </div>
+      </a>`).join("");
+  }
+  app.innerHTML = `
+    <div class="container">
+      <div class="janela">
+        <div class="barra barra-lilas"><span>👑 ${esc(PERFIL.nome)}</span>${controles()}</div>
+        <div class="corpo" style="padding:24px 16px 22px">
+          <div class="hero-titulo">🛍️ PRODUTOS DAS<br><span class="marca-texto">LIVES DA RAINHA</span></div>
+          <div class="hero-sub">Tudo que aparece nas minhas lives, com link direto e sem pegadinha. Toca na live e garante o seu.</div>
+          <div class="hero-chips">
+            <a class="chip chip-amarelo" href="https://instagram.com/arainhadaspromocoes" target="_blank" rel="noopener">📸 ${esc(PERFIL.instagram)}</a>
+            <span class="chip">🔴 ${lives.length} live${lives.length===1?"":"s"} no ar</span>
+          </div>
+          <div class="hero-aviso">Volte sempre! Live nova toda semana 👑</div>
+        </div>
+      </div>
+      <div class="titulo-secao">🎀 Escolha a live</div>
+      ${cards}
+    </div>
+    <div class="rodape">Feito com 💛 por ${esc(PERFIL.nome)} · <a href="#/admin" title="Painel de edição">🔐</a></div>`;
+}
+
+/* ================= TELA: LIVE ================= */
+function telaLive(app, slug){
+  if (memoria === null) { telaCarregando(app); return; }
+  const live = carregarLives().find(l => l.slug === slug);
+  if (!live || !live.ativa) {
+    app.innerHTML = `
+      <div class="container">
+        <div class="janela">
+          <div class="barra barra-rosa"><span>🔎 Ops!</span>${controles()}</div>
+          <div class="vazio"><div class="emoji">🔎</div>Essa live não está disponível.<br><br>
+          <a class="btn btn-amarelo" href="#/">◀ Ver lives no ar</a></div>
+        </div>
+      </div>`;
+    return;
+  }
+  const cards = live.produtos.map((p,i) => `
+    <div class="card-produto">
+      <div class="barra ${CORES_BARRA[i % CORES_BARRA.length]}">
+        <span>🛒 Achado ${i+1}</span>${controles()}
+      </div>
+      <div class="foto"><img src="${esc(p.img || FOTO_PADRAO)}" alt="${esc(p.nome)}" loading="lazy"
+        onerror="this.src='${FOTO_PADRAO}'"></div>
+      <div class="corpo">
+        <div class="nome">${esc(p.nome)}</div>
+        <a class="btn-comprar" href="${esc(p.url)}" target="_blank" rel="noopener">Comprar ↗</a>
+      </div>
+    </div>`).join("");
+  app.innerHTML = `
+    <div class="container">
+      <div class="janela faixa-live">
+        <div class="barra barra-amarela"><span>👑 ${esc(PERFIL.nome)}</span>${controles()}</div>
+        <div class="corpo">
+          <span class="tag">🔴 Produtos da live</span>
+          <h2>${esc(live.titulo)}</h2>
+          <div class="data">${esc(formatarData(live.data))}</div>
+        </div>
+      </div>
+      ${live.produtos.length ? `<div class="grade">${cards}</div>`
+        : `<div class="janela"><div class="barra barra-verde"><span>📦 Já vem</span>${controles()}</div>
+           <div class="vazio"><div class="emoji">📦</div>Os produtos aparecem aqui daqui a pouco!</div></div>`}
+    </div>
+    <div class="rodape"><a href="#/">◀ ver todas as lives</a></div>`;
+}
+
+/* ================= TELA: ADMIN ================= */
+let liveAberta = null; // id da live em edição
+
+function telaAdmin(app){
+  if (!authPronto || memoria === null) { telaCarregando(app); return; }
+  if (!usuario) { telaSenha(app); return; }
+  if (String(usuario.email||"").toLowerCase() !== ADMIN_EMAIL) {
+    app.innerHTML = `
+      <div class="senha-box">
+        <div class="janela">
+          <div class="barra barra-rosa"><span>🔐 Área da Rainha</span>${controles()}</div>
+          <div class="corpo">
+            <div class="cadeado">🚫</div>
+            <h2>Essa conta não tem permissão</h2>
+            <div style="font-size:13px;font-weight:500;margin-bottom:14px">Você entrou como <b>${esc(usuario.email)}</b>.<br>Só a conta da Thais pode editar.</div>
+            <button class="btn btn-amarelo btn-bloco" onclick="sair()">Sair e trocar de conta</button>
+            <div style="margin-top:14px"><a href="#/" style="font-size:13px;font-weight:700;text-decoration:underline;text-underline-offset:3px">◀ voltar pro site</a></div>
+          </div>
+        </div>
+      </div>`;
+    return;
+  }
+  const lives = carregarLives();
+  const avisoDemo = "";
+
+  const linhas = lives.map(l => `
+    <div class="linha-live-admin">
+      <div class="info">
+        <div class="titulo">${esc(l.titulo)} <span class="badge ${l.ativa?"badge-on":"badge-off"}">${l.ativa?"no ar":"oculta"}</span></div>
+        <div class="meta">${esc(formatarData(l.data))} · ${l.produtos.length} produto${l.produtos.length===1?"":"s"}</div>
+      </div>
+      <div class="acoes">
+        <button class="btn btn-lilas btn-mini" onclick="abrirLive('${l.id}')">Editar</button>
+      </div>
+    </div>`).join("");
+
+  app.innerHTML = `
+    <div class="container">
+      <div class="janela">
+        <div class="barra barra-rosa"><span>🔐 Painel da Rainha</span>${controles()}</div>
+        <div class="corpo" style="padding:12px 16px">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+            <div style="font-size:13px;font-weight:500">Oi, Thais! 👋 Só você vê esta tela 🤫</div>
+            <div style="display:flex;gap:8px">
+              <a class="btn btn-mini" href="#/">◀ Ver o site</a>
+              <button class="btn btn-mini" onclick="sair()">Sair</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      ${avisoDemo}
+      <div class="painel-secao">
+        <div class="barra barra-verde"><span>➕ Nova live</span>${controles()}</div>
+        <div class="conteudo">
+          <div class="campo"><label>Nome da live</label>
+            <input id="nv-titulo" placeholder="Ex.: Live de Sexta — Eletrônicos"></div>
+          <div class="campo"><label>Data</label>
+            <input id="nv-data" type="date"></div>
+          <button class="btn btn-amarelo btn-bloco" onclick="criarLive()">Criar live ✨</button>
+        </div>
+      </div>
+      <div class="painel-secao">
+        <div class="barra barra-lilas"><span>📺 Minhas lives</span>${controles()}</div>
+        <div class="conteudo">
+        ${lives.length ? linhas : `<div style="font-size:13.5px;font-weight:500">Nenhuma live ainda — crie a primeira ali em cima. 👆</div>`}
+        </div>
+      </div>
+      <div id="editor-live"></div>
+    </div>`;
+
+  const hoje = new Date();
+  const iso = hoje.getFullYear() + "-" + String(hoje.getMonth()+1).padStart(2,"0") + "-" + String(hoje.getDate()).padStart(2,"0");
+  document.getElementById("nv-data").value = iso;
+  if (liveAberta) renderEditorLive();
+}
+
+function telaSenha(app){
+  app.innerHTML = `
+    <div class="senha-box">
+      <div class="janela">
+        <div class="barra barra-rosa"><span>🔐 Área da Rainha</span>${controles()}</div>
+        <div class="corpo">
+          <div class="cadeado">👑</div>
+          <h2>Só a Thais entra aqui!</h2>
+          <div style="font-size:13px;font-weight:500;margin-bottom:14px">Entre com a sua conta Google pra editar as lives.</div>
+          <button class="btn btn-amarelo btn-bloco" onclick="entrarComGoogle()">Entrar com Google</button>
+          <div style="margin-top:14px"><a href="#/" style="font-size:13px;font-weight:700;text-decoration:underline;text-underline-offset:3px">◀ voltar pro site</a></div>
+        </div>
+      </div>
+    </div>`;
+}
+
+function criarLive(){
+  const titulo = document.getElementById("nv-titulo").value.trim();
+  const data = document.getElementById("nv-data").value;
+  if (!titulo) { toast("Dê um nome pra live ✍️"); return; }
+  const lives = carregarLives();
+  const ref = db.collection("lives").doc();
+  liveAberta = ref.id;
+  ref.set({
+    slug: gerarSlug(titulo, lives), titulo, data,
+    ativa: true, produtos: [], criadaEm: Date.now()
+  }).then(function(){
+    toast("Live criada! 🎉");
+  }).catch(erroEscrita);
+}
+
+function abrirLive(id){
+  liveAberta = id;
+  rota();
+  setTimeout(()=>{
+    const el = document.getElementById("editor-live");
+    if (el) el.scrollIntoView({behavior:"smooth"});
+  }, 60);
+}
+function fecharEditor(){
+  liveAberta = null;
+  rota();
+}
+
+function renderEditorLive(){
+  const alvo = document.getElementById("editor-live");
+  const lives = carregarLives();
+  const live = lives.find(l => l.id === liveAberta);
+  if (!live) { alvo.innerHTML = ""; return; }
+
+  const linhasProdutos = live.produtos.map((p,i) => `
+    <div class="linha-produto-admin">
+      <img class="mini-foto" src="${esc(p.img || FOTO_PADRAO)}" onerror="this.src='${FOTO_PADRAO}'">
+      <div class="nome">${esc(p.nome)}</div>
+      <div class="acoes">
+        <button class="btn-icone" title="Subir" onclick="moverProduto(${i},-1)">↑</button>
+        <button class="btn-icone" title="Descer" onclick="moverProduto(${i},1)">↓</button>
+        <button class="btn-icone perigo" title="Remover" id="del-p-${i}" onclick="removerProduto(${i})">✕</button>
+      </div>
+    </div>`).join("");
+
+  alvo.innerHTML = `
+    <div class="painel-secao">
+      <div class="barra barra-amarela">
+        <span>✏️ Editando: ${esc(live.titulo).slice(0,28)}${live.titulo.length>28?"…":""}</span>
+        <span class="controles"><button style="font-weight:700" onclick="fecharEditor()" title="Fechar">✕</button></span>
+      </div>
+      <div class="conteudo">
+
+      <div class="campo"><label>Nome da live</label>
+        <input id="ed-titulo" value="${esc(live.titulo)}"></div>
+      <div class="campo"><label>Data</label>
+        <input id="ed-data" type="date" value="${esc(live.data)}"></div>
+
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
+        <button class="btn btn-verde btn-mini" onclick="salvarDadosLive()">💾 Salvar alterações</button>
+        <button class="btn btn-mini" onclick="alternarAtiva()">${live.ativa ? "🙈 Ocultar live" : "👁️ Colocar no ar"}</button>
+        <button class="btn btn-rosa btn-mini" id="del-live" onclick="excluirLive()">🗑️ Excluir live</button>
+      </div>
+
+      <label style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.4px">Link desta live (divulgue este! 📣)</label>
+      <div class="link-copiavel">
+        <input readonly value="${esc(linkDaLive(live.slug))}" onclick="this.select()">
+        <button class="btn btn-verde btn-mini" onclick="copiar('${esc(linkDaLive(live.slug))}')">Copiar</button>
+      </div>
+
+      <hr class="divisor">
+
+      <h3>🛒 Produtos (${live.produtos.length})</h3>
+      ${live.produtos.length ? linhasProdutos : `<div style="font-size:13px;font-weight:500;padding:6px 0 10px">Nenhum produto ainda.</div>`}
+
+      <div class="caixa-add-produto">
+        <div class="campo"><label>Nome do produto</label>
+          <input id="np-nome" placeholder="Ex.: Air Fryer 4L Preta 127V"></div>
+        <div class="campo"><label>Link de afiliado</label>
+          <input id="np-url" placeholder="https://meli.la/..."></div>
+        <div class="campo"><label>Link da foto (opcional)</label>
+          <input id="np-img" placeholder="Cole o link da imagem do produto" oninput="previewFoto(this.value)">
+          <img id="np-preview" class="preview-img"></div>
+        <button class="btn btn-amarelo btn-bloco" onclick="adicionarProduto()">Adicionar produto 🛒</button>
+      </div>
+      </div>
+    </div>`;
+}
+
+function previewFoto(url){
+  const img = document.getElementById("np-preview");
+  if (url && url.trim()) { img.src = url.trim(); img.style.display = "block"; }
+  else img.style.display = "none";
+}
+
+function salvarDadosLive(){
+  const lives = carregarLives();
+  const live = lives.find(l => l.id === liveAberta);
+  if (!live) return;
+  const titulo = document.getElementById("ed-titulo").value.trim();
+  if (!titulo) { toast("O nome não pode ficar vazio"); return; }
+  db.collection("lives").doc(live.id).update({
+    titulo,
+    data: document.getElementById("ed-data").value,
+    slug: gerarSlug(titulo, lives, live.id)
+  }).then(()=>toast("Alterações salvas ✅")).catch(erroEscrita);
+}
+function alternarAtiva(){
+  const live = carregarLives().find(l => l.id === liveAberta);
+  if (!live) return;
+  db.collection("lives").doc(live.id).update({ ativa: !live.ativa })
+    .then(()=>toast(!live.ativa ? "Live no ar! 🔴" : "Live oculta 🙈")).catch(erroEscrita);
+}
+let confirmarExclusao = false;
+function excluirLive(){
+  const btn = document.getElementById("del-live");
+  if (!confirmarExclusao) {
+    confirmarExclusao = true;
+    btn.textContent = "Tem certeza? Toque de novo";
+    setTimeout(()=>{ confirmarExclusao = false; if(document.getElementById("del-live")) document.getElementById("del-live").textContent = "🗑️ Excluir live"; }, 2500);
+    return;
+  }
+  confirmarExclusao = false;
+  db.collection("lives").doc(liveAberta).delete()
+    .then(function(){ liveAberta = null; toast("Live excluída"); })
+    .catch(erroEscrita);
+}
+function salvarProdutos(live, produtos, msg){
+  db.collection("lives").doc(live.id).update({ produtos })
+    .then(()=>{ if (msg) toast(msg); }).catch(erroEscrita);
+}
+function adicionarProduto(){
+  const nome = document.getElementById("np-nome").value.trim();
+  const url = document.getElementById("np-url").value.trim();
+  const img = document.getElementById("np-img").value.trim();
+  if (!nome) { toast("Dê um nome pro produto ✍️"); return; }
+  if (!url) { toast("Cole o link de afiliado 🔗"); return; }
+  const live = carregarLives().find(l => l.id === liveAberta);
+  if (!live) return;
+  salvarProdutos(live, (live.produtos||[]).concat([{ nome, url, img }]), "Produto adicionado 🛒");
+}
+function removerProduto(i){
+  const live = carregarLives().find(l => l.id === liveAberta);
+  if (!live) return;
+  const produtos = (live.produtos||[]).slice();
+  produtos.splice(i,1);
+  salvarProdutos(live, produtos, "Produto removido");
+}
+function moverProduto(i, dir){
+  const live = carregarLives().find(l => l.id === liveAberta);
+  if (!live) return;
+  const produtos = (live.produtos||[]).slice();
+  const j = i + dir;
+  if (j < 0 || j >= produtos.length) return;
+  const tmp = produtos[i]; produtos[i] = produtos[j]; produtos[j] = tmp;
+  salvarProdutos(live, produtos, null);
+}
+
+/* ---------- INICIAR ---------- */
+rota();
+</script>
+</body>
+</html>
