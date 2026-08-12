@@ -179,6 +179,24 @@
   }
   .btn-comprar:active{transform:translate(2px,2px);box-shadow:none}
 
+  /* ===== Cupom da live ===== */
+  .use-cupom{
+    font-size:27px;font-weight:700;letter-spacing:1.5px;color:var(--azul);
+  }
+  .caixa-cupom{
+    display:flex;align-items:center;justify-content:space-between;gap:10px;
+    border:2.4px dashed var(--tinta);border-radius:10px;background:#fff;
+    padding:8px 8px 8px 16px;margin-top:12px;
+  }
+  .codigo-cupom{font-weight:700;font-size:19px;letter-spacing:1.5px;word-break:break-all}
+  .btn-cupom{
+    display:block;width:100%;text-align:center;
+    border:2px dashed var(--tinta);border-radius:8px;background:#fff;
+    font-weight:700;font-size:12px;padding:8px 0;letter-spacing:.5px;
+    transition:transform .1s;
+  }
+  .btn-cupom:active{transform:scale(.97)}
+
   .rodape{
     text-align:center;padding:10px 16px 30px;font-size:13px;color:#fff;font-weight:600;
     text-shadow:1px 1px 0 rgba(0,0,0,.3);position:relative;z-index:1;
@@ -370,6 +388,11 @@ function formatarData(iso){
 function linkDaLive(slug){
   return location.origin + location.pathname + "#/l/" + slug;
 }
+function copiarCupom(codigo){
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(codigo).then(()=>toast("Cupom " + codigo + " copiado! 🎟️"), ()=>copiarFallback(codigo));
+  } else copiarFallback(codigo);
+}
 function copiar(texto){
   if (navigator.clipboard && navigator.clipboard.writeText) {
     navigator.clipboard.writeText(texto).then(()=>toast("Link copiado! 🎉"), ()=>copiarFallback(texto));
@@ -507,6 +530,18 @@ function telaLive(app, slug){
       </div>`;
     return;
   }
+  const cupom = (live.cupom || "").trim();
+  const blocoCupom = !cupom ? "" : `
+      <div class="janela">
+        <div class="barra barra-verde"><span>🎟️ Cupom da live</span>${controles()}</div>
+        <div class="corpo" style="text-align:center;padding:18px 16px">
+          <div class="use-cupom">USE O CUPOM 👇</div>
+          <div class="caixa-cupom">
+            <span class="codigo-cupom">${esc(cupom)}</span>
+            <button class="btn btn-verde btn-mini" onclick="copiarCupom('${esc(cupom)}')">Copiar</button>
+          </div>
+        </div>
+      </div>`;
   const cards = live.produtos.map((p,i) => `
     <div class="card-produto">
       <div class="barra ${CORES_BARRA[i % CORES_BARRA.length]}">
@@ -516,6 +551,7 @@ function telaLive(app, slug){
         onerror="this.src='${FOTO_PADRAO}'"></div>
       <div class="corpo">
         <div class="nome">${esc(p.nome)}</div>
+        ${cupom ? `<button class="btn-cupom" onclick="copiarCupom('${esc(cupom)}')">🎟️ Copiar cupom</button>` : ""}
         <a class="btn-comprar" href="${esc(p.url)}" target="_blank" rel="noopener">Comprar ↗</a>
       </div>
     </div>`).join("");
@@ -529,6 +565,7 @@ function telaLive(app, slug){
           <div class="data">${esc(formatarData(live.data))}</div>
         </div>
       </div>
+      ${blocoCupom}
       ${live.produtos.length ? `<div class="grade">${cards}</div>`
         : `<div class="janela"><div class="barra barra-verde"><span>📦 Já vem</span>${controles()}</div>
            <div class="vazio"><div class="emoji">📦</div>Os produtos aparecem aqui daqui a pouco!</div></div>`}
@@ -537,7 +574,8 @@ function telaLive(app, slug){
 }
 
 /* ================= TELA: ADMIN ================= */
-let liveAberta = null; // id da live em edição
+let liveAberta = null;       // id da live em edição
+let produtoEditando = null;  // índice do produto em edição
 
 function telaAdmin(app){
   if (!authPronto || memoria === null) { telaCarregando(app); return; }
@@ -565,7 +603,7 @@ function telaAdmin(app){
     <div class="linha-live-admin">
       <div class="info">
         <div class="titulo">${esc(l.titulo)} <span class="badge ${l.ativa?"badge-on":"badge-off"}">${l.ativa?"no ar":"oculta"}</span></div>
-        <div class="meta">${esc(formatarData(l.data))} · ${l.produtos.length} produto${l.produtos.length===1?"":"s"}</div>
+        <div class="meta">${esc(formatarData(l.data))} · ${l.produtos.length} produto${l.produtos.length===1?"":"s"}${l.cupom ? " · 🎟️ " + esc(l.cupom) : ""}</div>
       </div>
       <div class="acoes">
         <button class="btn btn-lilas btn-mini" onclick="abrirLive('${l.id}')">Editar</button>
@@ -591,9 +629,11 @@ function telaAdmin(app){
         <div class="barra barra-verde"><span>➕ Nova live</span>${controles()}</div>
         <div class="conteudo">
           <div class="campo"><label>Nome da live</label>
-            <input id="nv-titulo" placeholder="Ex.: Live de Sexta — Eletrônicos"></div>
+            <input id="nv-titulo" placeholder="Ex.: Live Natura"></div>
           <div class="campo"><label>Data</label>
             <input id="nv-data" type="date"></div>
+          <div class="campo"><label>Cupom (opcional)</label>
+            <input id="nv-cupom" placeholder="Ex.: NATURA10 — aparece bem grande na página" style="text-transform:uppercase"></div>
           <button class="btn btn-amarelo btn-bloco" onclick="criarLive()">Criar live ✨</button>
         </div>
       </div>
@@ -633,10 +673,11 @@ function criarLive(){
   const data = document.getElementById("nv-data").value;
   if (!titulo) { toast("Dê um nome pra live ✍️"); return; }
   const lives = carregarLives();
+  const cupom = (document.getElementById("nv-cupom").value || "").trim().toUpperCase();
   const ref = db.collection("lives").doc();
   liveAberta = ref.id;
   ref.set({
-    slug: gerarSlug(titulo, lives), titulo, data,
+    slug: gerarSlug(titulo, lives), titulo, data, cupom,
     ativa: true, produtos: [], criadaEm: Date.now()
   }).then(function(){
     toast("Live criada! 🎉");
@@ -644,6 +685,7 @@ function criarLive(){
 }
 
 function abrirLive(id){
+  if (liveAberta !== id) produtoEditando = null;
   liveAberta = id;
   rota();
   setTimeout(()=>{
@@ -653,7 +695,34 @@ function abrirLive(id){
 }
 function fecharEditor(){
   liveAberta = null;
+  produtoEditando = null;
   rota();
+}
+function editarProduto(i){
+  produtoEditando = i;
+  fotoUploadEdicao = "";
+  rota();
+}
+function cancelarEdicaoProduto(){
+  produtoEditando = null;
+  fotoUploadEdicao = "";
+  rota();
+}
+function salvarEdicaoProduto(i){
+  const live = carregarLives().find(l => l.id === liveAberta);
+  if (!live) return;
+  const nome = document.getElementById("ed-p-nome").value.trim();
+  const url = document.getElementById("ed-p-url").value.trim();
+  const imgCampo = document.getElementById("ed-p-img").value.trim();
+  if (!nome) { toast("Dê um nome pro produto ✍️"); return; }
+  if (!url) { toast("Cole o link de afiliado 🔗"); return; }
+  const produtos = (live.produtos||[]).slice();
+  const atual = produtos[i] || {};
+  const img = fotoUploadEdicao || imgCampo || atual.img || "";
+  produtos[i] = { nome, url, img };
+  produtoEditando = null;
+  fotoUploadEdicao = "";
+  salvarProdutos(live, produtos, "Produto atualizado ✅");
 }
 
 function renderEditorLive(){
@@ -662,16 +731,42 @@ function renderEditorLive(){
   const live = lives.find(l => l.id === liveAberta);
   if (!live) { alvo.innerHTML = ""; return; }
 
-  const linhasProdutos = live.produtos.map((p,i) => `
+  const linhasProdutos = live.produtos.map(function(p, i){
+    if (produtoEditando === i) {
+      const imgEhLink = p.img && !String(p.img).startsWith("data:");
+      return `
+      <div class="caixa-add-produto" style="margin:10px 0">
+        <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin-bottom:10px">✏️ Editando produto ${i+1}</div>
+        <div class="campo"><label>Nome do produto</label>
+          <input id="ed-p-nome" value="${esc(p.nome)}"></div>
+        <div class="campo"><label>Link de afiliado</label>
+          <input id="ed-p-url" value="${esc(p.url)}"></div>
+        <div class="campo"><label>Foto: cole um link OU envie um arquivo</label>
+          <input id="ed-p-img" value="${imgEhLink ? esc(p.img) : ""}" placeholder="Link da imagem (opcional)" oninput="previewFotoEdicao(this.value)">
+          <div style="display:flex;align-items:center;gap:10px;margin-top:8px">
+            <input id="ed-p-arquivo" type="file" accept="image/*" style="display:none" onchange="fotoEdicaoEscolhida(this)">
+            <button class="btn btn-lilas btn-mini" onclick="document.getElementById('ed-p-arquivo').click()">📷 Enviar foto</button>
+            <img id="ed-p-preview" class="preview-img" src="${esc(p.img || "")}" style="margin-top:0;${p.img ? "display:block" : ""}">
+          </div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-verde btn-mini" onclick="salvarEdicaoProduto(${i})">💾 Salvar produto</button>
+          <button class="btn btn-mini" onclick="cancelarEdicaoProduto()">Cancelar</button>
+        </div>
+      </div>`;
+    }
+    return `
     <div class="linha-produto-admin">
       <img class="mini-foto" src="${esc(p.img || FOTO_PADRAO)}" onerror="this.src='${FOTO_PADRAO}'">
       <div class="nome">${esc(p.nome)}</div>
       <div class="acoes">
+        <button class="btn-icone" title="Editar" onclick="editarProduto(${i})">✎</button>
         <button class="btn-icone" title="Subir" onclick="moverProduto(${i},-1)">↑</button>
         <button class="btn-icone" title="Descer" onclick="moverProduto(${i},1)">↓</button>
         <button class="btn-icone perigo" title="Remover" id="del-p-${i}" onclick="removerProduto(${i})">✕</button>
       </div>
-    </div>`).join("");
+    </div>`;
+  }).join("");
 
   alvo.innerHTML = `
     <div class="painel-secao">
@@ -685,6 +780,8 @@ function renderEditorLive(){
         <input id="ed-titulo" value="${esc(live.titulo)}"></div>
       <div class="campo"><label>Data</label>
         <input id="ed-data" type="date" value="${esc(live.data)}"></div>
+      <div class="campo"><label>Cupom (opcional — deixe vazio pra não mostrar)</label>
+        <input id="ed-cupom" value="${esc(live.cupom || "")}" placeholder="Ex.: NATURA10" style="text-transform:uppercase"></div>
 
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
         <button class="btn btn-verde btn-mini" onclick="salvarDadosLive()">💾 Salvar alterações</button>
@@ -708,19 +805,79 @@ function renderEditorLive(){
           <input id="np-nome" placeholder="Ex.: Air Fryer 4L Preta 127V"></div>
         <div class="campo"><label>Link de afiliado</label>
           <input id="np-url" placeholder="https://meli.la/..."></div>
-        <div class="campo"><label>Link da foto (opcional)</label>
-          <input id="np-img" placeholder="Cole o link da imagem do produto" oninput="previewFoto(this.value)">
-          <img id="np-preview" class="preview-img"></div>
+        <div class="campo"><label>Foto: cole um link OU envie um arquivo</label>
+          <input id="np-img" placeholder="Link da imagem (opcional)" oninput="previewFoto(this.value)">
+          <div style="display:flex;align-items:center;gap:10px;margin-top:8px">
+            <input id="np-arquivo" type="file" accept="image/*" style="display:none" onchange="fotoNovaEscolhida(this)">
+            <button class="btn btn-lilas btn-mini" onclick="document.getElementById('np-arquivo').click()">📷 Enviar foto</button>
+            <img id="np-preview" class="preview-img" style="margin-top:0">
+          </div></div>
         <button class="btn btn-amarelo btn-bloco" onclick="adicionarProduto()">Adicionar produto 🛒</button>
       </div>
       </div>
     </div>`;
 }
 
-function previewFoto(url){
-  const img = document.getElementById("np-preview");
+/* ---------- FOTOS: link ou arquivo enviado (comprimido) ---------- */
+let fotoUploadNova = "";    // foto enviada no formulário de adicionar
+let fotoUploadEdicao = "";  // foto enviada no formulário de edição
+
+function lerFotoArquivo(input, cb){
+  const f = input.files && input.files[0];
+  if (!f) return;
+  const fr = new FileReader();
+  fr.onload = function(){
+    const img = new Image();
+    img.onload = function(){
+      const MAX = 420;
+      const fator = Math.min(1, MAX / Math.max(img.width, img.height));
+      const w = Math.max(1, Math.round(img.width * fator));
+      const h = Math.max(1, Math.round(img.height * fator));
+      const c = document.createElement("canvas");
+      c.width = w; c.height = h;
+      const ctx = c.getContext("2d");
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, w, h);
+      ctx.drawImage(img, 0, 0, w, h);
+      cb(c.toDataURL("image/jpeg", 0.75));
+    };
+    img.onerror = function(){ toast("Não consegui ler essa imagem 😕"); };
+    img.src = fr.result;
+  };
+  fr.readAsDataURL(f);
+  input.value = "";
+}
+function fotoNovaEscolhida(input){
+  lerFotoArquivo(input, function(dataUrl){
+    fotoUploadNova = dataUrl;
+    const campo = document.getElementById("np-img");
+    if (campo) campo.value = "";
+    mostrarPreview("np-preview", dataUrl);
+    toast("Foto pronta! 📷");
+  });
+}
+function fotoEdicaoEscolhida(input){
+  lerFotoArquivo(input, function(dataUrl){
+    fotoUploadEdicao = dataUrl;
+    const campo = document.getElementById("ed-p-img");
+    if (campo) campo.value = "";
+    mostrarPreview("ed-p-preview", dataUrl);
+    toast("Foto pronta! 📷");
+  });
+}
+function mostrarPreview(id, url){
+  const img = document.getElementById(id);
+  if (!img) return;
   if (url && url.trim()) { img.src = url.trim(); img.style.display = "block"; }
   else img.style.display = "none";
+}
+function previewFoto(url){
+  fotoUploadNova = "";
+  mostrarPreview("np-preview", url);
+}
+function previewFotoEdicao(url){
+  fotoUploadEdicao = "";
+  mostrarPreview("ed-p-preview", url);
 }
 
 function salvarDadosLive(){
@@ -732,6 +889,7 @@ function salvarDadosLive(){
   db.collection("lives").doc(live.id).update({
     titulo,
     data: document.getElementById("ed-data").value,
+    cupom: (document.getElementById("ed-cupom").value || "").trim().toUpperCase(),
     slug: gerarSlug(titulo, lives, live.id)
   }).then(()=>toast("Alterações salvas ✅")).catch(erroEscrita);
 }
@@ -762,11 +920,12 @@ function salvarProdutos(live, produtos, msg){
 function adicionarProduto(){
   const nome = document.getElementById("np-nome").value.trim();
   const url = document.getElementById("np-url").value.trim();
-  const img = document.getElementById("np-img").value.trim();
+  const img = fotoUploadNova || document.getElementById("np-img").value.trim();
   if (!nome) { toast("Dê um nome pro produto ✍️"); return; }
   if (!url) { toast("Cole o link de afiliado 🔗"); return; }
   const live = carregarLives().find(l => l.id === liveAberta);
   if (!live) return;
+  fotoUploadNova = "";
   salvarProdutos(live, (live.produtos||[]).concat([{ nome, url, img }]), "Produto adicionado 🛒");
 }
 function removerProduto(i){
