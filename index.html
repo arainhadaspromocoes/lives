@@ -338,6 +338,11 @@ const FIREBASE_CONFIG = {
 };
 firebase.initializeApp(FIREBASE_CONFIG);
 const db = firebase.firestore();
+try {
+  // Redes de celular às vezes travam a conexão em tempo real;
+  // isso faz o Firestore detectar e trocar pra um modo compatível.
+  db.settings({ experimentalAutoDetectLongPolling: true, merge: true });
+} catch(e){}
 const auth = firebase.auth();
 
 const CORES_BARRA = ["barra-amarela","barra-verde","barra-lilas"];
@@ -348,18 +353,78 @@ function fotoDemo(cor, emoji){
   return "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
 }
 
-/* ---------- ARMAZENAMENTO (Firestore em tempo real) ---------- */
-let memoria = null; // null = ainda carregando
+/* ---------- ARMAZENAMENTO (Firestore em tempo real + reservas) ---------- */
+let memoria = null;          // null = ainda carregando
+let tempoRealOk = false;     // true quando o onSnapshot responder
+const CHAVE_CACHE = "lives_cache_v1";
+
+function ordenarLives(arr){
+  arr.sort((a,b) => String(b.data||"").localeCompare(String(a.data||"")) || (b.criadaEm||0)-(a.criadaEm||0));
+  return arr;
+}
+function guardarCache(){
+  try { localStorage.setItem(CHAVE_CACHE, JSON.stringify(memoria)); } catch(e){}
+}
+
+/* Reserva 1: cópia local — abre na hora pra quem já visitou */
+try {
+  const cache = localStorage.getItem(CHAVE_CACHE);
+  if (cache) memoria = ordenarLives(JSON.parse(cache));
+} catch(e){}
+
+/* Canal principal: tempo real */
 db.collection("lives").onSnapshot(function(snap){
-  memoria = snap.docs.map(d => Object.assign({ id: d.id }, d.data()));
-  memoria.sort((a,b) => String(b.data||"").localeCompare(String(a.data||"")) || (b.criadaEm||0)-(a.criadaEm||0));
+  tempoRealOk = true;
+  memoria = ordenarLives(snap.docs.map(d => Object.assign({ id: d.id }, d.data())));
+  guardarCache();
   rota();
 }, function(err){
   console.error(err);
-  if (memoria === null) memoria = [];
-  toast("Erro ao carregar os dados 😕");
-  rota();
+  if (memoria === null) carregarViaRest();
 });
+
+/* Reserva 2: busca simples via REST — passa em qualquer rede */
+function valorRest(v){
+  if (!v) return null;
+  if ("stringValue" in v) return v.stringValue;
+  if ("booleanValue" in v) return v.booleanValue;
+  if ("integerValue" in v) return Number(v.integerValue);
+  if ("doubleValue" in v) return v.doubleValue;
+  if ("nullValue" in v) return null;
+  if ("arrayValue" in v) return (v.arrayValue.values || []).map(valorRest);
+  if ("mapValue" in v) {
+    const o = {}, f = v.mapValue.fields || {};
+    for (const k in f) o[k] = valorRest(f[k]);
+    return o;
+  }
+  return null;
+}
+let buscandoRest = false;
+function carregarViaRest(){
+  if (buscandoRest || tempoRealOk) return;
+  buscandoRest = true;
+  fetch("https://firestore.googleapis.com/v1/projects/" + FIREBASE_CONFIG.projectId +
+        "/databases/(default)/documents/lives?pageSize=300&key=" + FIREBASE_CONFIG.apiKey)
+    .then(r => r.json())
+    .then(function(j){
+      buscandoRest = false;
+      if (tempoRealOk) return; // o tempo real chegou antes, deixa ele mandar
+      const docs = (j.documents || []).map(function(d){
+        const obj = { id: d.name.split("/").pop() };
+        const f = d.fields || {};
+        for (const k in f) obj[k] = valorRest(f[k]);
+        return obj;
+      });
+      memoria = ordenarLives(docs);
+      guardarCache();
+      rota();
+    })
+    .catch(function(){ buscandoRest = false; });
+}
+/* Se em 5s o tempo real não respondeu, aciona a reserva (e insiste) */
+setTimeout(function(){ if (!tempoRealOk) carregarViaRest(); }, 5000);
+setInterval(function(){ if (!tempoRealOk && memoria === null) carregarViaRest(); }, 12000);
+
 function carregarLives(){ return memoria || []; }
 function erroEscrita(err){
   console.error(err);
