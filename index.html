@@ -640,9 +640,12 @@ function telaLive(app, slug){
       ${live.produtos.length ? `<div class="grade">${cards}</div>`
         : `<div class="janela"><div class="barra barra-verde"><span>📦 Já vem</span>${controles()}</div>
            <div class="vazio"><div class="emoji">📦</div>Os produtos aparecem aqui daqui a pouco!</div></div>`}
-      ${(configSite.linkPromocoes||"").trim() ? `
+      ${(function(){
+        const linkPromo = String(live.linkPromocoes || configSite.linkPromocoes || "").trim();
+        return linkPromo ? `
       <a class="btn btn-amarelo btn-bloco" style="margin-top:20px;font-size:15.5px;padding:15px 0;letter-spacing:.5px"
-         href="${esc(configSite.linkPromocoes.trim())}" target="_blank" rel="noopener">🛍️ TODAS AS PROMOÇÕES</a>` : ""}
+         href="${esc(linkPromo)}" target="_blank" rel="noopener">🛍️ TODAS AS PROMOÇÕES</a>` : "";
+      })()}
     </div>
     <div class="rodape"><a href="#/">◀ ver todas as lives</a></div>`;
 }
@@ -677,7 +680,7 @@ function telaAdmin(app){
     <div class="linha-live-admin">
       <div class="info">
         <div class="titulo">${esc(l.titulo)} <span class="badge ${l.ativa?"badge-on":"badge-off"}">${l.ativa?"no ar":"oculta"}</span></div>
-        <div class="meta">${esc(formatarData(l.data))} · ${l.produtos.length} produto${l.produtos.length===1?"":"s"}${l.cupom ? " · 🎟️ " + esc(l.cupom) : ""}</div>
+        <div class="meta">${esc(formatarData(l.data))} · ${l.produtos.length} produto${l.produtos.length===1?"":"s"}${l.marca ? " · 🏷️ " + esc(l.marca) : ""}${l.cupom ? " · 🎟️ " + esc(l.cupom) : ""}</div>
       </div>
       <div class="acoes">
         <button class="btn btn-lilas btn-mini" onclick="abrirLive('${l.id}')">Editar</button>
@@ -706,8 +709,10 @@ function telaAdmin(app){
             <input id="nv-titulo" placeholder="Ex.: Live Natura"></div>
           <div class="campo"><label>Data</label>
             <input id="nv-data" type="date"></div>
+          <div class="campo"><label>Marca (opcional — agrupa o cupom e o link)</label>
+            <input id="nv-marca" placeholder="Ex.: Natura, Boticário, Avon, Mercado Livre..."></div>
           <div class="campo"><label>Cupom (opcional)</label>
-            <input id="nv-cupom" placeholder="Ex.: NATURA10 — aparece bem grande na página" style="text-transform:uppercase"></div>
+            <input id="nv-cupom" placeholder="Vazio herda o cupom atual da marca" style="text-transform:uppercase"></div>
           <button class="btn btn-amarelo btn-bloco" onclick="criarLive()">Criar live ✨</button>
         </div>
       </div>
@@ -720,7 +725,7 @@ function telaAdmin(app){
       <div class="painel-secao">
         <div class="barra barra-amarela"><span>🛍️ Botão "Todas as promoções"</span>${controles()}</div>
         <div class="conteudo">
-          <div class="campo"><label>Link do botão (aparece no fim de cada live)</label>
+          <div class="campo"><label>Link padrão (usado quando a live não tem o próprio link)</label>
             <input id="cfg-promo" value="${esc(configSite.linkPromocoes || "")}" placeholder="Cole o link aqui — vazio esconde o botão"></div>
           <button class="btn btn-verde btn-mini" onclick="salvarConfig()">💾 Salvar botão</button>
         </div>
@@ -756,19 +761,42 @@ function salvarConfig(){
     .then(()=>toast(link ? "Botão salvo ✅" : "Botão escondido 🙈")).catch(erroEscrita);
 }
 
+function mesmaMarca(l, marca){
+  return String(l.marca||"").trim().toLowerCase() === String(marca||"").trim().toLowerCase();
+}
+function propagarMarca(marca, cupom, linkPromocoes, ignorarId, lives){
+  if (!String(marca||"").trim()) return;
+  const irmas = lives.filter(l => l.id !== ignorarId && mesmaMarca(l, marca));
+  if (!irmas.length) return;
+  irmas.forEach(function(l){
+    db.collection("lives").doc(l.id).update({ cupom, linkPromocoes }).catch(erroEscrita);
+  });
+  toast("Cupom e link atualizados nas " + (irmas.length + 1) + " lives de " + marca.trim() + " 🎯");
+}
 function criarLive(){
   const titulo = document.getElementById("nv-titulo").value.trim();
   const data = document.getElementById("nv-data").value;
   if (!titulo) { toast("Dê um nome pra live ✍️"); return; }
   const lives = carregarLives();
-  const cupom = (document.getElementById("nv-cupom").value || "").trim().toUpperCase();
+  const marca = document.getElementById("nv-marca").value.trim();
+  let cupom = (document.getElementById("nv-cupom").value || "").trim().toUpperCase();
+  const cupomDigitado = !!cupom;
+  let linkPromocoes = "";
+  if (marca) {
+    const irma = lives.find(l => mesmaMarca(l, marca));
+    if (irma) {
+      if (!cupom) cupom = irma.cupom || "";
+      linkPromocoes = irma.linkPromocoes || "";
+    }
+  }
   const ref = db.collection("lives").doc();
   liveAberta = ref.id;
   ref.set({
-    slug: gerarSlug(titulo, lives), titulo, data, cupom,
+    slug: gerarSlug(titulo, lives), titulo, data, marca, cupom, linkPromocoes,
     ativa: true, produtos: [], criadaEm: Date.now()
   }).then(function(){
     toast("Live criada! 🎉");
+    if (cupomDigitado) propagarMarca(marca, cupom, linkPromocoes, ref.id, lives);
   }).catch(erroEscrita);
 }
 
@@ -868,8 +896,13 @@ function renderEditorLive(){
         <input id="ed-titulo" value="${esc(live.titulo)}"></div>
       <div class="campo"><label>Data</label>
         <input id="ed-data" type="date" value="${esc(live.data)}"></div>
+      <div class="campo"><label>Marca (agrupa cupom e link — ex.: Natura)</label>
+        <input id="ed-marca" value="${esc(live.marca || "")}" placeholder="Ex.: Natura, Boticário, Avon..."></div>
       <div class="campo"><label>Cupom (opcional — deixe vazio pra não mostrar)</label>
         <input id="ed-cupom" value="${esc(live.cupom || "")}" placeholder="Ex.: NATURA10" style="text-transform:uppercase"></div>
+      <div class="campo"><label>Link do botão "Todas as promoções" desta live</label>
+        <input id="ed-linkpromo" value="${esc(live.linkPromocoes || "")}" placeholder="Vazio usa o link padrão do site"></div>
+      <div style="font-size:11.5px;font-weight:500;margin:-4px 0 12px;opacity:.75">💡 Com a marca preenchida, salvar aqui atualiza o cupom e o link de <b>todas</b> as lives dessa marca.</div>
 
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
         <button class="btn btn-verde btn-mini" onclick="salvarDadosLive()">💾 Salvar alterações</button>
@@ -974,12 +1007,18 @@ function salvarDadosLive(){
   if (!live) return;
   const titulo = document.getElementById("ed-titulo").value.trim();
   if (!titulo) { toast("O nome não pode ficar vazio"); return; }
+  const marca = document.getElementById("ed-marca").value.trim();
+  const cupom = (document.getElementById("ed-cupom").value || "").trim().toUpperCase();
+  const linkPromocoes = document.getElementById("ed-linkpromo").value.trim();
   db.collection("lives").doc(live.id).update({
     titulo,
     data: document.getElementById("ed-data").value,
-    cupom: (document.getElementById("ed-cupom").value || "").trim().toUpperCase(),
+    marca, cupom, linkPromocoes,
     slug: gerarSlug(titulo, lives, live.id)
-  }).then(()=>toast("Alterações salvas ✅")).catch(erroEscrita);
+  }).then(function(){
+    toast("Alterações salvas ✅");
+    propagarMarca(marca, cupom, linkPromocoes, live.id, lives);
+  }).catch(erroEscrita);
 }
 function alternarAtiva(){
   const live = carregarLives().find(l => l.id === liveAberta);
