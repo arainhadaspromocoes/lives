@@ -761,15 +761,42 @@ function salvarConfig(){
     .then(()=>toast(link ? "Botão salvo ✅" : "Botão escondido 🙈")).catch(erroEscrita);
 }
 
+/* ---------- MARCAS: comparação sem acento, detecção pelo título ---------- */
+function norm(s){
+  return String(s||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").trim();
+}
+const MARCAS_CONHECIDAS = ["natura","boticario","avon","eudora","mercado livre","shein","amazon",
+  "riachuelo","renner","sephora","dafiti","vult","quem disse berenice","magalu","magazine luiza","americanas"];
 function mesmaMarca(l, marca){
-  return String(l.marca||"").trim().toLowerCase() === String(marca||"").trim().toLowerCase();
+  return norm(marca) !== "" && norm(l.marca) === norm(marca);
+}
+function tituloTemMarca(l, marca){
+  const m = norm(marca);
+  return m.length >= 3 && norm(l.titulo).indexOf(m) !== -1;
+}
+/* Irmãs de uma marca: mesma etiqueta OU (sem etiqueta, mas com a marca no título) */
+function irmasDaMarca(marca, lives, ignorarId){
+  if (!String(marca||"").trim()) return [];
+  return lives.filter(l => l.id !== ignorarId &&
+    (mesmaMarca(l, marca) || (!String(l.marca||"").trim() && tituloTemMarca(l, marca))));
+}
+/* Descobre a marca pelo nome da live (marcas já usadas + lista de conhecidas) */
+function detectarMarca(titulo, lives){
+  const t = norm(titulo);
+  for (const l of lives) {
+    const m = String(l.marca||"").trim();
+    if (m && norm(m).length >= 3 && t.indexOf(norm(m)) !== -1) return m;
+  }
+  for (const m of MARCAS_CONHECIDAS) {
+    if (t.indexOf(m) !== -1) return m.replace(/\b\w/g, c => c.toUpperCase());
+  }
+  return "";
 }
 function propagarMarca(marca, cupom, linkPromocoes, ignorarId, lives){
-  if (!String(marca||"").trim()) return;
-  const irmas = lives.filter(l => l.id !== ignorarId && mesmaMarca(l, marca));
+  const irmas = irmasDaMarca(marca, lives, ignorarId);
   if (!irmas.length) return;
   irmas.forEach(function(l){
-    db.collection("lives").doc(l.id).update({ cupom, linkPromocoes }).catch(erroEscrita);
+    db.collection("lives").doc(l.id).update({ cupom, linkPromocoes, marca: marca.trim() }).catch(erroEscrita);
   });
   toast("Cupom e link atualizados nas " + (irmas.length + 1) + " lives de " + marca.trim() + " 🎯");
 }
@@ -778,12 +805,16 @@ function criarLive(){
   const data = document.getElementById("nv-data").value;
   if (!titulo) { toast("Dê um nome pra live ✍️"); return; }
   const lives = carregarLives();
-  const marca = document.getElementById("nv-marca").value.trim();
+  let marca = document.getElementById("nv-marca").value.trim();
+  if (!marca) {
+    marca = detectarMarca(titulo, lives);
+    if (marca) toast("Marca detectada: " + marca + " 🏷️");
+  }
   let cupom = (document.getElementById("nv-cupom").value || "").trim().toUpperCase();
   const cupomDigitado = !!cupom;
   let linkPromocoes = "";
   if (marca) {
-    const irma = lives.find(l => mesmaMarca(l, marca));
+    const irma = irmasDaMarca(marca, lives, null)[0];
     if (irma) {
       if (!cupom) cupom = irma.cupom || "";
       linkPromocoes = irma.linkPromocoes || "";
@@ -1007,7 +1038,11 @@ function salvarDadosLive(){
   if (!live) return;
   const titulo = document.getElementById("ed-titulo").value.trim();
   if (!titulo) { toast("O nome não pode ficar vazio"); return; }
-  const marca = document.getElementById("ed-marca").value.trim();
+  let marca = document.getElementById("ed-marca").value.trim();
+  if (!marca) {
+    marca = detectarMarca(titulo, lives.filter(l => l.id !== live.id));
+    if (marca) toast("Marca detectada: " + marca + " 🏷️");
+  }
   const cupom = (document.getElementById("ed-cupom").value || "").trim().toUpperCase();
   const linkPromocoes = document.getElementById("ed-linkpromo").value.trim();
   db.collection("lives").doc(live.id).update({
