@@ -355,27 +355,33 @@ function fotoDemo(cor, emoji){
 
 /* ---------- ARMAZENAMENTO (Firestore em tempo real + reservas) ---------- */
 let memoria = null;          // null = ainda carregando
+let configSite = {};         // configurações gerais (ex.: link do botão de promoções)
 let tempoRealOk = false;     // true quando o onSnapshot responder
-const CHAVE_CACHE = "lives_cache_v1";
+const CHAVE_CACHE = "lives_cache_v2";
 
 function ordenarLives(arr){
   arr.sort((a,b) => String(b.data||"").localeCompare(String(a.data||"")) || (b.criadaEm||0)-(a.criadaEm||0));
   return arr;
 }
+function separarDocs(docs){
+  const cfg = docs.find(d => d.id === "_config");
+  configSite = cfg || {};
+  return ordenarLives(docs.filter(d => d.id !== "_config"));
+}
 function guardarCache(){
-  try { localStorage.setItem(CHAVE_CACHE, JSON.stringify(memoria)); } catch(e){}
+  try { localStorage.setItem(CHAVE_CACHE, JSON.stringify({ lives: memoria, config: configSite })); } catch(e){}
 }
 
 /* Reserva 1: cópia local — abre na hora pra quem já visitou */
 try {
-  const cache = localStorage.getItem(CHAVE_CACHE);
-  if (cache) memoria = ordenarLives(JSON.parse(cache));
+  const cache = JSON.parse(localStorage.getItem(CHAVE_CACHE) || "null");
+  if (cache && cache.lives) { memoria = ordenarLives(cache.lives); configSite = cache.config || {}; }
 } catch(e){}
 
 /* Canal principal: tempo real */
 db.collection("lives").onSnapshot(function(snap){
   tempoRealOk = true;
-  memoria = ordenarLives(snap.docs.map(d => Object.assign({ id: d.id }, d.data())));
+  memoria = separarDocs(snap.docs.map(d => Object.assign({ id: d.id }, d.data())));
   guardarCache();
   rota();
 }, function(err){
@@ -415,7 +421,7 @@ function carregarViaRest(){
         for (const k in f) obj[k] = valorRest(f[k]);
         return obj;
       });
-      memoria = ordenarLives(docs);
+      memoria = separarDocs(docs);
       guardarCache();
       rota();
     })
@@ -634,6 +640,9 @@ function telaLive(app, slug){
       ${live.produtos.length ? `<div class="grade">${cards}</div>`
         : `<div class="janela"><div class="barra barra-verde"><span>📦 Já vem</span>${controles()}</div>
            <div class="vazio"><div class="emoji">📦</div>Os produtos aparecem aqui daqui a pouco!</div></div>`}
+      ${(configSite.linkPromocoes||"").trim() ? `
+      <a class="btn btn-amarelo btn-bloco" style="margin-top:20px;font-size:15.5px;padding:15px 0;letter-spacing:.5px"
+         href="${esc(configSite.linkPromocoes.trim())}" target="_blank" rel="noopener">🛍️ TODAS AS PROMOÇÕES</a>` : ""}
     </div>
     <div class="rodape"><a href="#/">◀ ver todas as lives</a></div>`;
 }
@@ -708,6 +717,14 @@ function telaAdmin(app){
         ${lives.length ? linhas : `<div style="font-size:13.5px;font-weight:500">Nenhuma live ainda — crie a primeira ali em cima. 👆</div>`}
         </div>
       </div>
+      <div class="painel-secao">
+        <div class="barra barra-amarela"><span>🛍️ Botão "Todas as promoções"</span>${controles()}</div>
+        <div class="conteudo">
+          <div class="campo"><label>Link do botão (aparece no fim de cada live)</label>
+            <input id="cfg-promo" value="${esc(configSite.linkPromocoes || "")}" placeholder="Cole o link aqui — vazio esconde o botão"></div>
+          <button class="btn btn-verde btn-mini" onclick="salvarConfig()">💾 Salvar botão</button>
+        </div>
+      </div>
       <div id="editor-live"></div>
     </div>`;
 
@@ -731,6 +748,12 @@ function telaSenha(app){
         </div>
       </div>
     </div>`;
+}
+
+function salvarConfig(){
+  const link = document.getElementById("cfg-promo").value.trim();
+  db.collection("lives").doc("_config").set({ linkPromocoes: link }, { merge: true })
+    .then(()=>toast(link ? "Botão salvo ✅" : "Botão escondido 🙈")).catch(erroEscrita);
 }
 
 function criarLive(){
