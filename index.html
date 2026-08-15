@@ -278,6 +278,18 @@
 
   hr.divisor{border:none;border-top:2px dashed #d8d6c9;margin:16px 0}
 
+  /* Botão flutuante do WhatsApp */
+  .zap-flutuante{
+    position:fixed;bottom:18px;right:14px;z-index:150;
+    display:inline-flex;align-items:center;gap:7px;
+    background:#25D366;color:var(--tinta);
+    border:2.4px solid var(--tinta);border-radius:100px;
+    box-shadow:var(--sombra-m);
+    font-weight:700;font-size:13.5px;padding:12px 18px;
+    transition:transform .1s, box-shadow .1s;
+  }
+  .zap-flutuante:active{transform:translate(2px,2px);box-shadow:var(--sombra-p)}
+
   /* Toast */
   .toast{
     position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(90px);
@@ -459,6 +471,10 @@ function formatarData(iso){
 function linkDaLive(slug){
   return location.origin + location.pathname + "#/l/" + slug;
 }
+function botaoZap(){
+  const link = String(configSite.whatsapp || "").trim();
+  return link ? `<a class="zap-flutuante" href="${esc(link)}" target="_blank" rel="noopener">💬 Grupo WhatsApp</a>` : "";
+}
 function copiarCupom(codigo){
   if (navigator.clipboard && navigator.clipboard.writeText) {
     navigator.clipboard.writeText(codigo).then(()=>toast("Cupom " + codigo + " copiado! 🎟️"), ()=>copiarFallback(codigo));
@@ -583,7 +599,8 @@ function telaHome(app){
       <div class="titulo-secao">🎀 Escolha a live</div>
       ${cards}
     </div>
-    <div class="rodape">Feito com 💛 por ${esc(PERFIL.nome)} · <a href="#/admin" title="Painel de edição">🔐</a></div>`;
+    <div class="rodape">Feito com 💛 por ${esc(PERFIL.nome)} · <a href="#/admin" title="Painel de edição">🔐</a></div>
+    ${botaoZap()}`;
 }
 
 /* ================= TELA: LIVE ================= */
@@ -644,7 +661,8 @@ function telaLive(app, slug){
       <a class="btn btn-amarelo btn-bloco" style="margin-top:20px;font-size:15.5px;padding:15px 0;letter-spacing:.5px"
          href="${esc(live.linkPromocoes.trim())}" target="_blank" rel="noopener">🛍️ TODAS AS PROMOÇÕES</a>` : ""}
     </div>
-    <div class="rodape"><a href="#/">◀ ver todas as lives</a></div>`;
+    <div class="rodape"><a href="#/">◀ ver todas as lives</a></div>
+    ${botaoZap()}`;
 }
 
 /* ================= TELA: ADMIN ================= */
@@ -723,6 +741,14 @@ function telaAdmin(app){
         ${lives.length ? linhas : `<div style="font-size:13.5px;font-weight:500">Nenhuma live ainda — crie a primeira ali em cima. 👆</div>`}
         </div>
       </div>
+      <div class="painel-secao">
+        <div class="barra barra-verde"><span>💬 Grupo do WhatsApp</span>${controles()}</div>
+        <div class="conteudo">
+          <div class="campo"><label>Link do grupo (botão flutuante em todas as páginas)</label>
+            <input id="cfg-zap" value="${esc(configSite.whatsapp || "")}" placeholder="https://chat.whatsapp.com/... — vazio esconde o botão"></div>
+          <button class="btn btn-verde btn-mini" onclick="salvarZap()">💾 Salvar</button>
+        </div>
+      </div>
       <div id="editor-live"></div>
     </div>`;
 
@@ -787,6 +813,12 @@ function propagarCupom(marca, cupom, ignorarId, lives){
   });
   toast("Cupom atualizado nas " + (irmas.length + 1) + " lives de " + marca.trim() + " 🎯");
 }
+function salvarZap(){
+  const link = document.getElementById("cfg-zap").value.trim();
+  db.collection("lives").doc("_config").set({ whatsapp: link }, { merge: true })
+    .then(()=>toast(link ? "Botão do WhatsApp salvo ✅" : "Botão do WhatsApp escondido 🙈")).catch(erroEscrita);
+}
+
 function criarLive(){
   const titulo = document.getElementById("nv-titulo").value.trim();
   const data = document.getElementById("nv-data").value;
