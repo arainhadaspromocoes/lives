@@ -895,6 +895,7 @@ function renderEditorLive(){
       <img class="mini-foto" src="${esc(p.img || FOTO_PADRAO)}" onerror="this.src='${FOTO_PADRAO}'">
       <div class="nome">${esc(p.nome)}</div>
       <div class="acoes">
+        <button class="btn-icone" title="Jogar pro topo" onclick="produtoProTopo(${i})" style="background:var(--amarelo)">⤒</button>
         <button class="btn-icone" title="Editar" onclick="editarProduto(${i})">✎</button>
         <button class="btn-icone" title="Subir" onclick="moverProduto(${i},-1)">↑</button>
         <button class="btn-icone" title="Descer" onclick="moverProduto(${i},1)">↓</button>
@@ -1093,6 +1094,14 @@ function removerProduto(i){
   const produtos = (live.produtos||[]).slice();
   produtos.splice(i,1);
   salvarProdutos(live, produtos, "Produto removido");
+}
+function produtoProTopo(i){
+  const live = carregarLives().find(l => l.id === liveAberta);
+  if (!live || i === 0) return;
+  const produtos = (live.produtos||[]).slice();
+  const p = produtos.splice(i, 1)[0];
+  produtos.unshift(p);
+  salvarProdutos(live, produtos, "Jogado pro topo ⤒");
 }
 function moverProduto(i, dir){
   const live = carregarLives().find(l => l.id === liveAberta);
