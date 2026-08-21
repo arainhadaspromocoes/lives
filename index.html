@@ -164,6 +164,13 @@
   }
   .card-produto .foto img{width:100%;height:100%;object-fit:contain}
   .card-produto .corpo{padding:10px 11px 12px;display:flex;flex-direction:column;flex:1;gap:9px}
+  /* produto sem foto: card largo estilo botão de link */
+  .card-produto.sem-foto{grid-column:1 / -1}
+  .card-produto.sem-foto .corpo{padding:14px 14px 14px}
+  .card-produto.sem-foto .nome{
+    font-size:17px;font-weight:700;text-align:center;line-height:1.35;
+    -webkit-line-clamp:2;
+  }
   .card-produto .nome{
     font-size:13px;line-height:1.35;font-weight:500;flex:1;
     display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;
@@ -630,19 +637,22 @@ function telaLive(app, slug){
           </div>
         </div>
       </div>`;
-  const cards = live.produtos.map((p,i) => `
-    <div class="card-produto">
+  const cards = live.produtos.map(function(p, i){
+    const temFoto = !!(p.img && String(p.img).trim());
+    return `
+    <div class="card-produto${temFoto ? "" : " sem-foto"}">
       <div class="barra ${CORES_BARRA[i % CORES_BARRA.length]}">
         <span>🛒 Achado ${i+1}</span>${controles()}
       </div>
-      <div class="foto"><img src="${esc(p.img || FOTO_PADRAO)}" alt="${esc(p.nome)}" loading="lazy"
-        onerror="this.src='${FOTO_PADRAO}'"></div>
+      ${temFoto ? `<div class="foto"><img src="${esc(p.img)}" alt="${esc(p.nome)}" loading="lazy"
+        onerror="this.src='${FOTO_PADRAO}'"></div>` : ""}
       <div class="corpo">
         <div class="nome">${esc(p.nome)}</div>
         ${cupom ? `<button class="btn-cupom" onclick="copiarCupom('${esc(cupom)}')">🎟️ Copiar cupom</button>` : ""}
-        <a class="btn-comprar" href="${esc(p.url)}" target="_blank" rel="noopener">Comprar ↗</a>
+        <a class="btn-comprar" href="${esc(p.url)}" target="_blank" rel="noopener">${temFoto ? "Comprar ↗" : "Ver ofertas ↗"}</a>
       </div>
-    </div>`).join("");
+    </div>`;
+  }).join("");
   app.innerHTML = `
     <div class="container">
       <div class="janela faixa-live">
