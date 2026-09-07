@@ -375,6 +375,7 @@ function fotoDemo(cor, emoji){
 /* ---------- ARMAZENAMENTO (Firestore em tempo real + reservas) ---------- */
 let memoria = null;          // null = ainda carregando
 let configSite = {};         // configurações gerais (ex.: link do botão de promoções)
+let docNatura = null;        // doc _natura (cupom do site da Natura, compartilhado)
 let tempoRealOk = false;     // true quando o onSnapshot responder
 const CHAVE_CACHE = "lives_cache_v2";
 
@@ -385,7 +386,21 @@ function ordenarLives(arr){
 function separarDocs(docs){
   const cfg = docs.find(d => d.id === "_config");
   configSite = cfg || {};
+  docNatura = docs.find(d => d.id === "_natura") || docNatura;
   return ordenarLives(docs.filter(d => d.id !== "_config"));
+}
+
+/* Live da Natura usa sempre o cupom atual do site da Natura (doc _natura) */
+function ehLiveNatura(live){
+  const t = (String(live.marca || "") + " " + String(live.titulo || "")).toLowerCase();
+  return t.indexOf("natura") !== -1 || t.indexOf("avon") !== -1;
+}
+function cupomDaLive(live){
+  if (ehLiveNatura(live)){
+    const cn = String((docNatura && docNatura.cupom) || "").trim();
+    if (cn) return cn;
+  }
+  return String(live.cupom || "").trim();
 }
 function guardarCache(){
   try { localStorage.setItem(CHAVE_CACHE, JSON.stringify({ lives: memoria, config: configSite })); } catch(e){}
@@ -394,7 +409,10 @@ function guardarCache(){
 /* Reserva 1: cópia local — abre na hora pra quem já visitou */
 try {
   const cache = JSON.parse(localStorage.getItem(CHAVE_CACHE) || "null");
-  if (cache && cache.lives) { memoria = ordenarLives(cache.lives); configSite = cache.config || {}; }
+  if (cache && cache.lives) {
+    memoria = ordenarLives(cache.lives); configSite = cache.config || {};
+    docNatura = (cache.lives || []).find(d => d.id === "_natura") || docNatura;
+  }
 } catch(e){}
 
 /* Canal principal: tempo real */
@@ -625,7 +643,7 @@ function telaLive(app, slug){
       </div>`;
     return;
   }
-  const cupom = (live.cupom || "").trim();
+  const cupom = cupomDaLive(live);
   const blocoCupom = !cupom ? "" : `
       <div class="janela">
         <div class="barra barra-verde"><span>🎟️ Cupom da live</span>${controles()}</div>
